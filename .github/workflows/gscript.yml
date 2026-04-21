@@ -8,6 +8,9 @@ on: # This action will trigger when an issue is reopened or opened.
   pull_request_target: 
     types:
       - opened
+permissions:
+  issues: write
+  pull-requests: read
         
 jobs: # The jobs that run in this workflow
   label_issues: # the first job is named as label_issues
@@ -25,7 +28,8 @@ jobs: # The jobs that run in this workflow
               repo: context.repo.repo,
               labels: ["issue", "fix"]
             })
-      - name: Comment on new issue #this is another step that comments on the issue 
+      - name: Comment on new issue #this is another step that comments on the issue
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
         uses: peter-evans/create-or-update-comment@v1 # This step uses the "peter-evans/create-or-update-comment" action to create or update a comment on the issue.
         with:
           issue-number: ${{ github.event.issue.number }} # The issue number is obtained from the context of the event that triggered the action.
@@ -43,9 +47,10 @@ jobs: # The jobs that run in this workflow
 # Comment on when an users opens the first pull request 
   first_pr_comment:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
-      pull-requests: write
+      pull-requests: read
+      issues: write
     steps:
       - name: Check if first PR and comment
         uses: actions/github-script@v6
@@ -55,11 +60,8 @@ jobs: # The jobs that run in this workflow
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pull_number = context.payload.pull_request.number;
-  
-            // "creator" is the PR author login
             const creator = context.payload.pull_request.user.login;
   
-            // Check how many PRs this user has opened in this repo
             const { data: prs } = await github.rest.pulls.list({
               owner,
               repo,
@@ -69,7 +71,6 @@ jobs: # The jobs that run in this workflow
   
             const openedByCreator = prs.filter(pr => pr.user?.login === creator);
   
-            // If this is their first PR, comment on it
             if (openedByCreator.length === 1) {
               await github.rest.issues.createComment({
                 owner,
