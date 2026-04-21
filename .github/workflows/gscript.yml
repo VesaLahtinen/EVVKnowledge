@@ -5,6 +5,10 @@ on: # This action will trigger when an issue is reopened or opened.
       - reopened
       - opened
       - closed
+  pull_request:
+    types:
+      - opened
+        
 jobs: # The jobs that run in this workflow
   label_issues: # the first job is named as label_issues
     runs-on: ubuntu-latest # This job will run on the latest version of Ubuntu.
@@ -37,3 +41,33 @@ jobs: # The jobs that run in this workflow
           body: |
             The issue is now resolved.
 # Comment on when an users opens the first pull request 
+  first_pr_comment:           # New job for first-time PR contributors
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'   # Only runs on PR events
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check if first PR and comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const creator = context.payload.pull_request.user.login;
+
+            
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            });
+
+            const userPRs = prs.data.filter(pr => pr.user.login === creator);
+
+            // If this is their only PR, it's their first one
+            if (userPRs.length === 1) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: ` Congratulations! @${creator} you are awesome! Thanks for opening your first pull request. We'll review it as soon as possible.`
+              });
+            }
