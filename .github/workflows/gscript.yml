@@ -5,7 +5,7 @@ on: # This action will trigger when an issue is reopened or opened.
       - reopened
       - opened
       - closed
-  pull_request:
+  pull_request_target: 
     types:
       - opened
         
@@ -41,33 +41,40 @@ jobs: # The jobs that run in this workflow
           body: |
             The issue is now resolved.
 # Comment on when an users opens the first pull request 
-  first_pr_comment:           # New job for first-time PR contributors
+  first_pr_comment:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'   # Only runs on PR events
+    if: github.event_name == 'pull_request'
     permissions:
       pull-requests: write
     steps:
       - name: Check if first PR and comment
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+  
+            // "creator" is the PR author login
             const creator = context.payload.pull_request.user.login;
-
-            
-            const prs = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'all'
+  
+            // Check how many PRs this user has opened in this repo
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "all",
+              per_page: 100,
             });
-
-            const userPRs = prs.data.filter(pr => pr.user.login === creator);
-
-            // If this is their only PR, it's their first one
-            if (userPRs.length === 1) {
+  
+            const openedByCreator = prs.filter(pr => pr.user?.login === creator);
+  
+            // If this is their first PR, comment on it
+            if (openedByCreator.length === 1) {
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body: ` Congratulations! @${creator} you are awesome! Thanks for opening your first pull request. We'll review it as soon as possible.`
+                owner,
+                repo,
+                issue_number: pull_number,
+                body: `Congratulations! @${creator} you are awesome! Thanks for opening your first pull request. We'll review it as soon as possible.`,
               });
             }
