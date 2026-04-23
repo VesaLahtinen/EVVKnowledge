@@ -5,12 +5,8 @@ on: # This action will trigger when an issue is reopened or opened.
       - reopened
       - opened
       - closed
-  pull_request_target: 
-    types:
-      - opened
 permissions:
   issues: write
-  pull-requests: read
         
 jobs:
   label_issues:
