@@ -1,0 +1,47 @@
+name: First PR Welcome Comment
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Check if this is user's first PR
+        id: check_first_pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const creator = context.payload.pull_request.user.login;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const { data } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'all',
+              per_page: 100,
+            });
+
+            const userPRs = data.filter(pr => pr.user.login === creator);
+
+            return userPRs.length === 1;
+          result-encoding: string
+
+      - name: Post welcome comment
+        if: steps.check_first_pr.outputs.result == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const creator = context.payload.pull_request.user.login;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `Congratulations! @${creator} you are awesome! Thanks for opening your first pull request. We'll review it as soon as possible`
+            });
