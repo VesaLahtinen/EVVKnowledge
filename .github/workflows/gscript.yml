@@ -48,38 +48,3 @@ jobs:
           issue-number: ${{ github.event.issue.number }}
           body: |
             The issue is now resolved.
-# Comment on when an users opens the first pull request 
-  first_pr_comment:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request_target'
-    permissions:
-      pull-requests: read
-      issues: write
-    steps:
-      - name: Check if first PR and comment
-        uses: actions/github-script@v6        
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const pull_number = context.payload.pull_request.number;
-            const creator = context.payload.pull_request.user.login;
-  
-            const { data: prs } = await github.rest.pulls.list({
-              owner,
-              repo,
-              state: "all",
-              per_page: 2,                    
-            });
-  
-            const openedByCreator = prs.filter(pr => pr.user?.login === creator);
-  
-            if (openedByCreator.length === 1) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pull_number,
-                body: `Congratulations! @${creator} you are awesome! Thanks for opening your first pull request. We'll review it as soon as possible.`,
-              });
-            }
